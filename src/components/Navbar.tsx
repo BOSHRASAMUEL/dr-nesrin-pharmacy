@@ -22,6 +22,18 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    // منع scroll عند فتح القائمة على الموبايل
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+
   const links = [
     { label: 'الرئيسية', href: '#hero' },
     { label: 'خدماتنا', href: '#features' },
@@ -135,46 +147,59 @@ export default function Navbar() {
       {/* Mobile Menu */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-surface-200/50 overflow-y-auto max-h-[calc(100vh-80px)]"
-          >
-            <div className="px-4 py-4 space-y-1">
-              {links.map((link) => (
-                <motion.a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  whileHover={{ x: -4 }}
-                  className="block px-4 py-3 rounded-xl text-surface-700 font-medium hover:bg-primary-50 hover:text-primary-600 transition-colors"
-                >
-                  {link.label}
-                </motion.a>
-              ))}
-              <div className="pt-3 border-t border-surface-200/50 space-y-2">
-                <a
-                  href={`tel:${data.settings.phone}`}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-surface-600 hover:bg-surface-50 transition-colors"
-                >
-                  <Phone className="w-4 h-4 flex-shrink-0" />
-                  <span>اتصل بنا</span>
-                </a>
-                <a
-                  href="#cta"
-                  onClick={() => setIsOpen(false)}
-                  className="block px-4 py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white text-center font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-primary-500/25 active:scale-95"
-                >
-                  اطلب الآن
-                </a>
-                <div className="pt-3 flex justify-center pb-4">
-                  <SocialLinks tone="dark" size="md" solid />
+          <>
+            {/* Overlay - يجب يكون فوق nav */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="lg:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+              style={{ top: '64px' }}
+            />
+            
+            {/* Menu Content */}
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-surface-200/50 overflow-hidden z-50"
+            >
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-1">
+                {links.map((link) => (
+                  <motion.a
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsOpen(false)}
+                    whileHover={{ x: -4 }}
+                    className="block px-4 py-3 rounded-xl text-surface-700 font-medium hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    {link.label}
+                  </motion.a>
+                ))}
+                <div className="pt-3 border-t border-surface-200/50 space-y-2">
+                  <a
+                    href={`tel:${data.settings.phone}`}
+                    className="flex items-center gap-2 px-4 py-3 rounded-xl text-surface-600 hover:bg-surface-50 transition-colors"
+                  >
+                    <Phone className="w-4 h-4 flex-shrink-0" />
+                    <span>اتصل بنا</span>
+                  </a>
+                  <a
+                    href="#cta"
+                    onClick={() => setIsOpen(false)}
+                    className="block px-4 py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white text-center font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-primary-500/25 active:scale-95"
+                  >
+                    اطلب الآن
+                  </a>
+                  <div className="pt-3 flex justify-center pb-2">
+                    <SocialLinks tone="dark" size="md" solid />
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </motion.nav>

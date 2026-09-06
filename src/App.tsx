@@ -15,23 +15,17 @@ import { useSiteData } from './lib/SiteDataContext';
 import CategoryPage from './pages/CategoryPage';
 import ProductPage from './pages/ProductPage';
 import AdminPage from './pages/AdminPage';
-import SetupPage from './pages/SetupPage';
-import { isSetupCompleted } from './lib/storage';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [setupCompleted, setSetupCompleted] = useState(isSetupCompleted());
   const route = useHashRoute();
   const { data } = useSiteData();
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
+    // تأخير قليل لتحميل البيانات
+    const timer = setTimeout(() => setLoading(false), 800);
     return () => clearTimeout(timer);
   }, []);
-
-  if (!setupCompleted && !loading) {
-    return <SetupPage onComplete={() => setSetupCompleted(true)} />;
-  }
 
   if (route.page === 'admin') return <AdminPage />;
   if (route.page === 'category') return <CategoryPage slug={route.slug} />;

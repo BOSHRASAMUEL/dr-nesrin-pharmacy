@@ -10,7 +10,8 @@ import {
   clearGitHubConfig, loadGitHubConfig, saveGitHubConfig,
   testConnection, putTextFile, uploadImage, type GitHubConfig,
 } from '../lib/github';
-import { loadSiteSettings, updateSiteSettings } from '../lib/storage';
+import { loadSiteSettings, updateSiteSettings, hasAdminPassword, verifyAdminPassword } from '../lib/storage';
+import AdminSetup from './AdminSetup';
 
 function newId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -21,6 +22,8 @@ type Tab = 'products' | 'reviews' | 'settings';
 export default function AdminPage() {
   const { data, loading, refresh } = useSiteData();
   const [config, setConfig] = useState<GitHubConfig | null>(loadGitHubConfig());
+  const [showSetup, setShowSetup] = useState(!config && !hasAdminPassword());
+  const [passwordVerified, setPasswordVerified] = useState(!hasAdminPassword());
   const [draft, setDraft] = useState<SiteData | null>(null);
   const [pendingImages, setPendingImages] = useState<Record<string, File>>({});
   const [tab, setTab] = useState<Tab>('products');
@@ -41,7 +44,19 @@ export default function AdminPage() {
     if (!loading && !draft) setDraft(structuredClone(data));
   }, [loading, data, draft]);
 
-  if (!config) return <LoginScreen onLogin={setConfig} />;
+  // إذا لم يكمل الإعداد الأول، عرض صفحة الإعداد
+  if (showSetup) {
+    return <AdminSetup onComplete={(cfg) => {
+      setConfig(cfg);
+      setShowSetup(false);
+      setPasswordVerified(true);
+    }} />;
+  }
+
+  // إذا لم يتم التحقق من كلمة المرور، عرض شاشة تسجيل الدخول
+  if (!passwordVerified) {
+    return <AdminLoginScreen onLogin={() => setPasswordVerified(true)} />;
+  }
   if (!draft) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface-50">
@@ -501,62 +516,65 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function LoginScreen({ onLogin }: { onLogin: (c: GitHubConfig) => void }) {
-  const [owner, setOwner] = useState('');
-  const [repo, setRepo] = useState('');
-  const [branch, setBranch] = useState('main');
-  const [token, setToken] = useState('');
-  const [checking, setChecking] = useState(false);
+function AdminLoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setChecking(true);
-    const config: GitHubConfig = { owner: owner.trim(), repo: repo.trim(), branch: branch.trim() || 'main', token: token.trim() };
+
     try {
-      await testConnection(config);
-      saveGitHubConfig(config);
-      onLogin(config);
+      if (!verifyAdminPassword(password)) {
+        setError('كلمة المرور غير صحيحة');
+        return;
+      }
+      onLogin();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'تعذر تسجيل الدخول');
+      setError(err instanceof Error ? err.message : 'حدث خطأ');
     } finally {
       setChecking(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-50 px-4" dir="rtl">
-      <form onSubmit={handleSubmit} className="w-full max-w-md bg-white rounded-3xl border border-surface-100 shadow-sm p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-surface-50 to-accent-50 px-4" dir="rtl">
+      <form onSubmit={handleSubmit} className="w-full max-w-md bg-white rounded-3xl border border-surface-100 shadow-lg p-8">
         <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center mb-4">
           <ShieldCheck className="w-6 h-6" />
         </div>
-        <h1 className="text-xl font-bold text-surface-900 mb-1">تسجيل الدخول للوحة التحكم</h1>
+        <h1 className="text-2xl font-bold text-surface-900 mb-2">دخول لوحة التحكم</h1>
         <p className="text-surface-500 text-sm mb-6">
-          أدخلي بيانات مستودع GitHub الخاص بالموقع. تُحفظ هذه البيانات في متصفحك فقط ولا تُرسل لأي جهة أخرى.
+          أدخلي كلمة المرور للدخول
         </p>
 
         <div className="space-y-3">
-          <Field label="اسم المستخدم / المؤسسة على GitHub">
-            <input className="admin-input" value={owner} onChange={(e) => setOwner(e.target.value)} required placeholder="مثال: nesrin-pharmacy" />
-          </Field>
-          <Field label="اسم المستودع (Repository)">
-            <input className="admin-input" value={repo} onChange={(e) => setRepo(e.target.value)} required placeholder="مثال: pharmacy-site" />
-          </Field>
-          <Field label="الفرع (Branch)">
-            <input className="admin-input" value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="main" />
-          </Field>
-          <Field label="GitHub Personal Access Token">
-            <input className="admin-input" type="password" value={token} onChange={(e) => setToken(e.target.value)} required placeholder="ghp_xxx..." />
-          </Field>
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 mb-1">كلمة المرور</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••"
+              className="w-full px-4 py-3 border border-surface-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition"
+              autoFocus
+            />
+          </div>
         </div>
 
-        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+        {error && (
+          <p className="text-red-500 text-sm mt-4 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={checking}
-          className="w-full mt-6 inline-flex items-center justify-center gap-2 py-3 bg-primary-600 hover:bg-primary-500 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors"
+          className="w-full mt-6 inline-flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary-500 to-accent-500 hover:shadow-lg hover:shadow-primary-500/25 disabled:opacity-60 text-white font-semibold rounded-xl transition-all"
         >
           {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
           دخول

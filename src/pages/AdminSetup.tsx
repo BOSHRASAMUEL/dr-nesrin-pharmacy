@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { ArrowRight, AlertCircle, CheckCircle2, Upload, Loader2 } from 'lucide-react';
-import { markSetupAsCompleted, updateSiteSettings } from '../lib/storage';
+import { ArrowRight, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Upload } from 'lucide-react';
+import { saveGitHubConfig, testConnection, type GitHubConfig } from '../lib/github';
+import { updateSiteSettings, saveAdminPassword } from '../lib/storage';
 
-interface SetupPageProps {
-  onComplete: () => void;
+interface AdminSetupProps {
+  onComplete: (config: GitHubConfig) => void;
 }
 
-export default function SetupPage({ onComplete }: SetupPageProps) {
+export default function AdminSetup({ onComplete }: AdminSetupProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Step 1: Repository Configuration
+  // Step 1: GitHub Configuration
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [token, setToken] = useState('');
@@ -58,17 +59,26 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         setError('يرجى ملء جميع الحقول');
         return;
       }
-      updateSiteSettings({
-        repositoryOwner: owner.trim(),
-        repositoryName: repo.trim(),
-        gitToken: token.trim(),
-      });
-      setStep(2);
-    } else if (step === 2) {
-      if (!logoPreview && !faviconPreview) {
-        setError('يرجى اختيار على الأقل اللوجو أو الـ Favicon');
-        return;
+      
+      setLoading(true);
+      try {
+        const config: GitHubConfig = {
+          owner: owner.trim(),
+          repo: repo.trim(),
+          branch: 'main',
+          token: token.trim(),
+        };
+        // اختبر الاتصال
+        await testConnection(config);
+        saveGitHubConfig(config);
+        setStep(2);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'فشل الاتصال بـ GitHub');
+      } finally {
+        setLoading(false);
       }
+    } else if (step === 2) {
+      // Step 2 بدون متطلبات - يمكن تخطيها
       if (logoPreview) updateSiteSettings({ logoUrl: logoPreview });
       if (faviconPreview) updateSiteSettings({ faviconUrl: faviconPreview });
       setStep(3);
@@ -88,15 +98,17 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
 
       setLoading(true);
       try {
-        // Simulate saving (في تطبيق حقيقي ستحتاج لحفظ كلمة المرور بطريقة آمنة)
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // حفظ كلمة المرور
+        saveAdminPassword(password);
         
-        // Store password as a hash (simplified - في الإنتاج استخدم bcrypt أو ما شابه)
-        updateSiteSettings({
-          setupCompleted: true,
-        });
-        markSetupAsCompleted();
-        onComplete();
+        const config = {
+          owner: owner.trim(),
+          repo: repo.trim(),
+          branch: 'main',
+          token: token.trim(),
+        };
+        
+        onComplete(config);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'حدث خطأ');
       } finally {
@@ -115,13 +127,13 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">💊</span>
+            <ShieldCheck className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl lg:text-4xl font-black text-primary-900 mb-2">
-            إعداد صيدليتك
+            إعداد لوحة التحكم
           </h1>
           <p className="text-surface-600 text-lg">
-            خطوات بسيطة لبدء الموقع الخاص بك
+            إعدادات الأمان والبيانات الأولية
           </p>
         </div>
 
@@ -139,7 +151,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                 {step > s ? <CheckCircle2 className="w-5 h-5" /> : s}
               </div>
               <div className="text-xs font-medium text-surface-600 mt-2 whitespace-nowrap">
-                {s === 1 && 'المستودع'}
+                {s === 1 && 'GitHub'}
                 {s === 2 && 'اللوجو'}
                 {s === 3 && 'كلمة المرور'}
               </div>
@@ -155,11 +167,11 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
           />
         </div>
 
-        {/* Step 1: Repository */}
+        {/* Step 1: GitHub */}
         {step === 1 && (
           <div className="bg-white rounded-3xl border border-surface-200 p-8 lg:p-10 shadow-lg animate-slide-up">
-            <h2 className="text-2xl font-bold text-primary-900 mb-6">بيانات مستودع GitHub</h2>
-            <p className="text-surface-600 mb-6">أدخل بيانات مستودع GitHub الخاص بك للربط والمزامنة التلقائية</p>
+            <h2 className="text-2xl font-bold text-primary-900 mb-6">بيانات GitHub</h2>
+            <p className="text-surface-600 mb-6">أدخل بيانات مستودع GitHub الخاص بك</p>
 
             <div className="space-y-4">
               <div>
@@ -200,7 +212,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                   className="w-full px-4 py-3 rounded-xl border border-surface-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition"
                 />
                 <p className="text-xs text-surface-500 mt-2">
-                  سيتم حفظ البيانات في متصفحك فقط ولن تُرسل لأي جهة خارجية
+                  سيتم حفظ البيانات في متصفحك فقط
                 </p>
               </div>
             </div>
@@ -215,10 +227,20 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
             <div className="flex gap-4 mt-8">
               <button
                 onClick={handleNext}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary-500/25 transition-all active:scale-95"
+                disabled={loading}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary-500/25 transition-all active:scale-95 disabled:opacity-60 inline-flex items-center justify-center gap-2"
               >
-                التالي
-                <ArrowRight className="w-4 h-4 inline mr-2" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    جاري الاختبار...
+                  </>
+                ) : (
+                  <>
+                    التالي
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -227,8 +249,8 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         {/* Step 2: Branding */}
         {step === 2 && (
           <div className="bg-white rounded-3xl border border-surface-200 p-8 lg:p-10 shadow-lg animate-slide-up">
-            <h2 className="text-2xl font-bold text-primary-900 mb-6">تخصيص الهوية البصرية</h2>
-            <p className="text-surface-600 mb-6">أضيفي اللوجو والـ Favicon الخاص بصيدليتك</p>
+            <h2 className="text-2xl font-bold text-primary-900 mb-6">اللوجو والـ Favicon (اختياري)</h2>
+            <p className="text-surface-600 mb-6">يمكنك تخطي هذه الخطوة أو إضافة الصور الآن</p>
 
             <div className="grid md:grid-cols-2 gap-6">
               {/* Logo Upload */}
@@ -288,13 +310,6 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
               </div>
             </div>
 
-            {error && (
-              <div className="mt-6 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <span className="text-sm">{error}</span>
-              </div>
-            )}
-
             <div className="flex gap-4 mt-8">
               <button
                 onClick={handleBack}
@@ -316,8 +331,8 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         {/* Step 3: Password */}
         {step === 3 && (
           <div className="bg-white rounded-3xl border border-surface-200 p-8 lg:p-10 shadow-lg animate-slide-up">
-            <h2 className="text-2xl font-bold text-primary-900 mb-6">تعيين كلمة المرور</h2>
-            <p className="text-surface-600 mb-6">اختري كلمة مرور قوية للدخول إلى لوحة التحكم</p>
+            <h2 className="text-2xl font-bold text-primary-900 mb-6">كلمة المرور الإدمن</h2>
+            <p className="text-surface-600 mb-6">اختري كلمة مرور قوية لحماية لوحة التحكم</p>
 
             <div className="space-y-4">
               <div>
@@ -348,7 +363,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
 
               <div className="mt-6 p-4 bg-accent-50 border border-accent-200 rounded-xl">
                 <p className="text-sm text-accent-900">
-                  <strong>تنبيه:</strong> استخدمي كلمة مرور قوية تحتوي على أحرف وأرقام وأحرف كبيرة لحماية أفضل
+                  <strong>💡 نصيحة:</strong> استخدمي كلمة مرور قوية تحتوي على أحرف وأرقام
                 </p>
               </div>
             </div>
@@ -380,7 +395,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                   </>
                 ) : (
                   <>
-                    إنهاء
+                    إنهاء الإعداد
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
