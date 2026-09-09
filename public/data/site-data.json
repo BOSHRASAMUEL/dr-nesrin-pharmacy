@@ -12,13 +12,13 @@
   },
   "products": [
     {
-      "id": "p_1788955275680_jokk5",
-      "categorySlug": "chronic-diseases",
+      "id": "p_1788955445607_c5o9t",
+      "categorySlug": "dental-care",
       "name": "منتج جديد",
-      "image": "https://raw.githubusercontent.com/flex44rmd/dr-nesrin-pharmacy/main/public/data/uploads/1788955294293-Herunterladen_28.jpg",
-      "shortDescription": "test",
-      "detailDescription": "test",
-      "status": "available"
+      "image": "",
+      "shortDescription": "منتج جديدمنتج جديدمنتج جديد",
+      "detailDescription": "منتج جديدمنتج جديدمنتج جديدمنتج جديدمنتج جديد",
+      "status": "unavailable"
     }
   ],
   "reviews": [
