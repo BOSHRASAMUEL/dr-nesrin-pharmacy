@@ -10,7 +10,17 @@
     "ratingUrl": "#testimonials",
     "ratingLabel": "تقييم"
   },
-  "products": [],
+  "products": [
+    {
+      "id": "p_1788955275680_jokk5",
+      "categorySlug": "chronic-diseases",
+      "name": "منتج جديد",
+      "image": "https://raw.githubusercontent.com/flex44rmd/dr-nesrin-pharmacy/main/public/data/uploads/1788955294293-Herunterladen_28.jpg",
+      "shortDescription": "test",
+      "detailDescription": "test",
+      "status": "available"
+    }
+  ],
   "reviews": [
     {
       "id": "r1",
